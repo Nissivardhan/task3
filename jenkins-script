@@ -1,0 +1,50 @@
+pipeline {
+	agent any
+
+	tools {
+    	nodejs 'NodeJS' // Ensure this is the name of the Node.js tool configured in Jenkins
+	}
+
+	environment {
+    	SONAR_SCANNER_HOME = tool 'SonarQube Scanner' // Match this with the tool name in Jenkins global config
+	}
+
+	stages {
+    	stage('Checkout Code') {
+        	steps {
+            	git url: 'https://github.com/DL-Super30/lms.git', branch: 'main'
+        	}
+    	}
+
+    	stage('Install Dependencies') {
+        	steps {
+            	dir('webapp') {
+                	sh 'npm install'
+            	}
+        	}
+    	}
+
+    	stage('SonarQube Analysis') {
+        	steps {
+            	withSonarQubeEnv('SonarQube') { // Replace with your configured SonarQube server name
+                	sh '''
+                    	cd webapp
+                    	${SONAR_SCANNER_HOME}/bin/sonar-scanner \
+                    	-Dsonar.projectKey=lms-webapp \
+                    	-Dsonar.projectName=LMS WebApp \
+                    	-Dsonar.sources=. \
+                    	-Dsonar.exclusions=node_modules/**,**/*.test.js,**/*.spec.js
+                	'''
+            	}
+        	}
+    	}
+
+    	stage('Quality Gate') {
+        	steps {
+            	timeout(time: 1, unit: 'MINUTES') {
+                	waitForQualityGate abortPipeline: true
+            	}
+        	}
+    	}
+	}
+}
